@@ -63,6 +63,7 @@ hyperverse-cloud/
 - Socket.io gateway with JWT handshake authentication.
 - Next.js frontend with login/register flows, dashboard, sidebar, profile page, dark mode, and Socket.io integration.
 - Docker Compose for PostgreSQL, Redis, backend API, frontend, and host agent.
+- Node Agent QEMU/KVM orchestration with libvirt domain lifecycle actions and real-time host/VPS telemetry.
 
 ## Quick start
 

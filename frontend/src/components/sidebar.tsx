@@ -6,7 +6,15 @@ import { clearSession, getRefreshToken, authApi } from '@/lib/auth';
 import { disconnectSocket } from '@/lib/socket';
 import { ThemeToggle } from './theme-toggle';
 
-const nav = [{ href: '/dashboard', label: 'Dashboard' }, { href: '/profile', label: 'Profile' }];
+const nav = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/admin', label: 'Admin' },
+  { href: '/admin/billing', label: 'Billing' },
+  { href: '/admin/support', label: 'Support' },
+  { href: '/admin/announcements', label: 'Announcements' },
+  { href: '/admin/audit-logs', label: 'Audit Logs' },
+  { href: '/profile', label: 'Profile' },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
