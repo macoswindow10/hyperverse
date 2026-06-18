@@ -38,7 +38,12 @@ hyperverse-cloud/
 ├── docker-compose.yml
 ├── docs/
 └── frontend/
+    ├── src/app/{dashboard,login,profile,register}/page.tsx
     ├── src/app/{globals.css,layout.tsx,page.tsx}
+    ├── src/components/{app-shell,auth-card,sidebar,theme-toggle}.tsx
+    ├── src/lib/{auth,config,socket}.ts
+    ├── src/types/auth.ts
+    ├── .env.example
     ├── next-env.d.ts
     ├── next.config.ts
     ├── package.json
@@ -56,6 +61,7 @@ hyperverse-cloud/
 - Role hierarchy with admin user-management routes.
 - Activity logging middleware and service-level audit records.
 - Socket.io gateway with JWT handshake authentication.
+- Next.js frontend with login/register flows, dashboard, sidebar, profile page, dark mode, and Socket.io integration.
 - Docker Compose for PostgreSQL, Redis, backend API, frontend, and host agent.
 
 ## Quick start

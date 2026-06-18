@@ -4,5 +4,5 @@ import './globals.css';
 export const metadata: Metadata = { title: 'HyperVerse Cloud', description: 'Production-grade VPS management panel' };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (<html lang="en"><body>{children}</body></html>);
+  return <html lang="en" suppressHydrationWarning><body>{children}</body></html>;
 }
