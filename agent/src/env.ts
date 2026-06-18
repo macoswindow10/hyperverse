@@ -6,4 +6,5 @@ export const env = z.object({
   AGENT_PORT: z.coerce.number().int().positive().default(4100),
   BACKEND_SOCKET_URL: z.string().url(),
   AGENT_TOKEN: z.string().min(16),
+  STATS_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
 }).parse(process.env);
