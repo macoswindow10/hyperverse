@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SUPPORT
+  ADMIN
+  OWNER
+}
+
+enum ActivityAction {
+  USER_REGISTERED
+  USER_LOGGED_IN
+  DISCORD_LOGIN
+  TOKEN_REFRESHED
+  PASSWORD_CHANGED
+  PROFILE_VIEWED
+  USER_ROLE_UPDATED
+  USER_DISABLED
+  USER_ENABLED
+}
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  username        String        @unique
+  passwordHash    String?
+  discordId       String?       @unique
+  avatarUrl       String?
+  role            Role          @default(USER)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  activityLogs    ActivityLog[]
+  refreshTokens   RefreshToken[]
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ActivityLog {
+  id        String         @id @default(cuid())
+  userId    String?
+  action    ActivityAction
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime       @default(now())
+  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
