@@ -1,0 +1,119 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - hyperverse
+
+  certbot:
+    image: certbot/certbot:v2.11.0
+    profiles: ["ssl"]
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    entrypoint: ["certbot"]
+    networks:
+      - hyperverse
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - deploy/env/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hyperverse
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "$${REDIS_PASSWORD}"]
+    env_file:
+      - deploy/env/redis.env
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hyperverse
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
+    env_file:
+      - deploy/env/backend.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "4000"
+    networks:
+      - hyperverse
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    restart: unless-stopped
+    env_file:
+      - deploy/env/frontend.env
+    depends_on:
+      - backend
+    expose:
+      - "3000"
+    networks:
+      - hyperverse
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    restart: unless-stopped
+    profiles: ["agent"]
+    privileged: true
+    env_file:
+      - deploy/env/agent.env
+    volumes:
+      - /var/run/libvirt:/var/run/libvirt
+      - /var/lib/libvirt/images:/var/lib/libvirt/images
+      - /dev/kvm:/dev/kvm
+    depends_on:
+      - backend
+    expose:
+      - "4100"
+    networks:
+      - hyperverse
+
+networks:
+  hyperverse:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_webroot:
+  letsencrypt:

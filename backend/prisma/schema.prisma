@@ -24,34 +24,43 @@ enum ActivityAction {
   USER_ROLE_UPDATED
   USER_DISABLED
   USER_ENABLED
+  BILLING_PLAN_CREATED
+  INVOICE_CREATED
+  SUPPORT_TICKET_UPDATED
+  ANNOUNCEMENT_PUBLISHED
 }
 
 model User {
-  id              String        @id @default(cuid())
-  email           String        @unique
-  username        String        @unique
-  passwordHash    String?
-  discordId       String?       @unique
-  avatarUrl       String?
-  role            Role          @default(USER)
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  activityLogs    ActivityLog[]
-  refreshTokens   RefreshToken[]
+  id               String           @id @default(cuid())
+  email            String           @unique
+  username         String           @unique
+  passwordHash     String?
+  discordId        String?          @unique
+  avatarUrl        String?
+  role             Role             @default(USER)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  activityLogs     ActivityLog[]
+  refreshTokens    RefreshToken[]
+  invoices         Invoice[]
+  requestedTickets SupportTicket[]  @relation("RequestedTickets")
+  assignedTickets  SupportTicket[]  @relation("AssignedTickets")
+  supportMessages  SupportMessage[]
+  announcements    Announcement[]
 
   @@index([role])
   @@index([createdAt])
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
   userId    String
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -70,4 +79,119 @@ model ActivityLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model BillingPlan {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  priceCents  Int
+  currency    String          @default("USD")
+  interval    BillingInterval @default(MONTHLY)
+  isActive    Boolean         @default(true)
+  features    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  invoices    Invoice[]
+
+  @@index([isActive])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  userId        String
+  planId        String?
+  number        String        @unique
+  status        InvoiceStatus @default(OPEN)
+  subtotalCents Int
+  taxCents      Int           @default(0)
+  totalCents    Int
+  currency      String        @default("USD")
+  dueAt         DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          BillingPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SupportTicket {
+  id          String           @id @default(cuid())
+  requesterId String
+  assigneeId  String?
+  subject     String
+  status      TicketStatus     @default(OPEN)
+  priority    TicketPriority   @default(NORMAL)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  requester   User             @relation("RequestedTickets", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignee    User?            @relation("AssignedTickets", fields: [assigneeId], references: [id], onDelete: SetNull)
+  messages    SupportMessage[]
+
+  @@index([requesterId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  authorId  String?
+  body      String
+  internal  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([authorId])
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  severity    String    @default("info")
+  audience    String    @default("all")
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  authorId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([publishedAt])
+  @@index([audience])
 }
