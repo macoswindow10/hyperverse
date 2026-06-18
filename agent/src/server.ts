@@ -1,13 +1,21 @@
 import express from 'express';
-import { io } from 'socket.io-client';
 import si from 'systeminformation';
 import { env } from './env.js';
+import { socket } from './socket.js';
+import {
+  startVPS,
+  stopVPS,
+  restartVPS,
+  deleteVPS,
+} from './vps.js';
 
 const app = express();
 app.use(express.json());
 
 /**
- * Health endpoint (node status + basic hardware info)
+ * ----------------------
+ * HEALTH CHECK
+ * ----------------------
  */
 app.get('/health', async (_req, res) => {
   try {
@@ -20,7 +28,7 @@ app.get('/health', async (_req, res) => {
     res.json({
       status: 'ok',
       node: osInfo.hostname,
-      cpu: cpu.manufacturer + ' ' + cpu.brand,
+      cpu: cpu.brand,
       cores: cpu.cores,
       memoryTotal: mem.total,
     });
@@ -33,44 +41,74 @@ app.get('/health', async (_req, res) => {
 });
 
 /**
- * Socket connection to backend panel
+ * ----------------------
+ * SOCKET CONNECTION
+ * ----------------------
  */
-const socket = io(env.BACKEND_SOCKET_URL, {
-  auth: {
-    token: env.AGENT_TOKEN,
-  },
-  transports: ['websocket'],
-});
 
-/**
- * Connection events
- */
 socket.on('connect', () => {
-  console.log('🚀 HyperVerse Agent connected to backend');
+  console.log('🚀 HyperVerse Agent connected to panel');
 });
 
-socket.on('connect_error', (error) => {
-  console.error('❌ Socket connection failed:', error.message);
+socket.on('connect_error', (err) => {
+  console.error('❌ Socket error:', err.message);
 });
 
 /**
- * Real-time stats loop (IMPORTANT for VPS panel graphs)
+ * ----------------------
+ * VPS ACTION HANDLER
+ * ----------------------
+ */
+socket.on('vps:action', async (data) => {
+  const { action, name } = data;
+
+  console.log(`📦 VPS Action: ${action} -> ${name}`);
+
+  try {
+    switch (action) {
+      case 'start':
+        await startVPS(name);
+        break;
+
+      case 'stop':
+        await stopVPS(name);
+        break;
+
+      case 'restart':
+        await restartVPS(name);
+        break;
+
+      case 'delete':
+        await deleteVPS(name);
+        break;
+
+      default:
+        console.log('Unknown VPS action:', action);
+    }
+  } catch (err) {
+    console.error('VPS execution failed:', err);
+  }
+});
+
+/**
+ * ----------------------
+ * REAL-TIME STATS LOOP
+ * ----------------------
  */
 setInterval(async () => {
   try {
-    const [cpuLoad, mem, fsSize] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-      si.fsSize(),
-    ]);
+    const load = await si.currentLoad();
+    const mem = await si.mem();
+    const disk = await si.fsSize();
 
     socket.emit('node:stats', {
-      cpu: cpuLoad.currentLoad,
+      cpu: load.currentLoad,
       memory: {
         total: mem.total,
         used: mem.active,
       },
-      disk: fsSize[0]?.use || 0,
+      disk: disk[0]?.use || 0,
+      uptime: process.uptime(),
       timestamp: Date.now(),
     });
   } catch (err) {
@@ -79,18 +117,10 @@ setInterval(async () => {
 }, 5000);
 
 /**
- * Receive VPS commands from panel (future Prompt 5 integration)
- */
-socket.on('vps:action', async (data) => {
-  console.log('📦 VPS Action received:', data);
-
-  // later we will connect:
-  // startVPS / stopVPS / restartVPS / reinstallVPS
-});
-
-/**
- * Start agent server
+ * ----------------------
+ * START SERVER
+ * ----------------------
  */
 app.listen(env.AGENT_PORT, () => {
-  console.log(`⚡ HyperVerse Agent running on :${env.AGENT_PORT}`);
+  console.log(`⚡ HyperVerse Agent running on port ${env.AGENT_PORT}`);
 });
