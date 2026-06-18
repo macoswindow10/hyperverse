@@ -16,6 +16,7 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   REDIS_URL: z.string().url().optional(),
+  AGENT_TOKEN: z.string().min(16).optional(),
 });
 
 export const env = envSchema.parse(process.env);
